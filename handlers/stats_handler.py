@@ -1,11 +1,12 @@
-from utils.db import get_stats
+from pyrogram import Client
+from pyrogram.types import Message
+from utils.db import get_all_user_ids, get_all_group_ids
 
-# Handle the stats command (Owner only)
-async def stats_command(client, message):
-    total_users, total_groups = get_stats()
-    stats_text = (
-        f"Bot Stats:\n\n"
-        f"Total Users: {total_users}\n"
-        f"Total Groups: {total_groups}"
-    )
+async def show_stats(client: Client, message: Message):
+    """Show bot statistics like number of users and active groups"""
+    user_count = len(get_all_user_ids())
+    group_count = len(get_all_group_ids())
+
+    stats_text = f"Bot Stats:\n\nUsers who started the bot: {user_count}\nActive Groups: {group_count}"
+    
     await message.reply(stats_text)
