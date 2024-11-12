@@ -1,8 +1,10 @@
-from pyrogram import Client
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import API_ID, API_HASH, BOT_TOKEN, OWNER_ID, LOG_GROUP_ID
 from handlers.auth_handlers import authorize_user, unauthorize_user
 from handlers.stats_handler import stats_command
 from handlers.broadcast_handler import broadcast_message
+from utils.db import log_new_group, log_new_user, get_stats
 
 bot = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -11,17 +13,17 @@ async def log_group_addition(client, update):
     if update.chat.type in ["supergroup", "group"]:
         if update.new_chat_member.status == "member" and update.old_chat_member.status == "left":
             group_name = update.chat.title
-            await bot.send_message(LOG_GROUP_ID, f"#new_group {group_name}")
+            group_id = update.chat.id
+            log_new_group(group_id, group_name)
+            await bot.send_message(LOG_GROUP_ID, f"#new_group {group_name} ({group_id}) added the bot.")
 
-@bot.on_message(filters.command(["start"]))
+@bot.on_message(filters.command("start"))
 async def start_command(client, message):
     start_text = "Welcome to the bot! Use /help for more information. Please select an option below."
-    inline_buttons = [
-        [InlineKeyboardButton("Help", callback_data="help")]
-    ]
+    inline_buttons = [[InlineKeyboardButton("Help", callback_data="help")]]
     await message.reply(start_text, reply_markup=InlineKeyboardMarkup(inline_buttons))
 
-@bot.on_message(filters.command(["help"]))
+@bot.on_message(filters.command("help"))
 async def help_command(client, message):
     help_text = (
         "This bot offers several commands:\n\n"
@@ -42,26 +44,33 @@ async def button_click_handler(client, callback_query):
     elif callback_query.data == "help":
         await help_command(client, callback_query.message)
 
-@bot.on_message(filters.command(["auth"], prefixes=["/", "!"]) & filters.reply & filters.group)
+@bot.on_message(filters.command("auth") & filters.reply & filters.group)
 async def handle_authorize_user(client, message):
     await authorize_user(client, message)
 
-@bot.on_message(filters.command(["unauth"], prefixes=["/", "!"]) & filters.reply & filters.group)
+@bot.on_message(filters.command("unauth") & filters.reply & filters.group)
 async def handle_unauthorize_user(client, message):
     await unauthorize_user(client, message)
 
-@bot.on_message(filters.command(["stats"], prefixes=["/", "!", "@"]) & filters.user(OWNER_ID))
+@bot.on_message(filters.command("stats") & filters.user(OWNER_ID))
 async def handle_stats_command(client, message):
-    await stats_command(client, message)
+    total_users, total_groups = get_stats()
+    stats_text = (
+        f"Bot Stats:\n\n"
+        f"Total Users: {total_users}\n"
+        f"Total Groups: {total_groups}"
+    )
+    await message.reply(stats_text)
 
-@bot.on_message(filters.command(["broadcast"], prefixes=["/", "!", "@"]) & filters.reply & filters.user(OWNER_ID))
+@bot.on_message(filters.command("broadcast") & filters.reply & filters.user(OWNER_ID))
 async def handle_broadcast(client, message):
     await broadcast_message(client, message)
 
-@bot.on_message(filters.command(["start"]) & filters.private)
+@bot.on_message(filters.command("start") & filters.private)
 async def log_new_user(client, message):
     user_id = message.from_user.id
     username = message.from_user.username
+    log_new_user(user_id, username)
     await bot.send_message(LOG_GROUP_ID, f"#new_user {username} ({user_id}) started the bot")
 
 bot.run()
