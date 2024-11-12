@@ -1,0 +1,9 @@
+/my_telegram_bot/
+├── bot.py
+├── config.py
+├── handlers/
+│   ├── auth_handlers.py
+│   ├── stats_handler.py
+│   └── broadcast_handler.py
+├── requirements.txt
+└── README.md
